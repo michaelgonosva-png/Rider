@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14532d">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<title>Rider Parcel Manager</title>
+<style>
+:root{--bg:#f3f5f1;--card:#fff;--ink:#17210f;--mut:#5d6b52;--pri:#14532d;--pri2:#dff0e2;--warn:#b45309;--bad:#b91c1c;--line:#d5dccf}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.4 system-ui,Roboto,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:84px}
+header{background:var(--pri);color:#fff;padding:14px 16px;font-weight:700;font-size:19px;position:sticky;top:0;z-index:5}
+main{padding:12px;max-width:640px;margin:auto}
+section{display:none}section.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+h2{margin:4px 0 10px;font-size:20px}h3{margin:0 0 8px;font-size:16px}
+label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}
+input,select,textarea{width:100%;font:inherit;padding:12px;border:1px solid var(--line);border-radius:8px;background:#fff}
+button{font:inherit;font-weight:600;min-height:50px;padding:10px 14px;border:0;border-radius:10px;background:var(--pri);color:#fff;width:100%;margin-top:8px}
+button.sec{background:var(--pri2);color:var(--pri)}button.bad{background:#fde8e8;color:var(--bad)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.stat b{display:block;font-size:26px}.stat span{font-size:13px;color:var(--mut)}
+.stat.big{grid-column:1/-1;background:var(--pri);color:#fff}.stat.big span{color:#cfe8d4}.stat.big b{font-size:34px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(6,1fr);background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0)}
+nav button{background:none;color:var(--mut);margin:0;border-radius:0;font-size:11px;min-height:60px;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button i{font-style:normal;font-size:22px}nav button.on{color:var(--pri);background:var(--pri2)}
+.g1{background:var(--pri);color:#fff;padding:8px 12px;border-radius:8px;margin:14px 0 6px;font-weight:700}
+.g2{font-weight:700;color:var(--pri);margin:10px 2px 4px}.g3{color:var(--mut);margin:6px 2px 2px;font-size:14px;font-weight:600}
+.p .t{font-weight:700}.p small{color:var(--mut);display:block}
+.chip{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:99px;background:#eee;margin-right:4px}
+.chip.Delivered{background:#d1fae5;color:#065f46}.chip.Pending{background:#fef3c7;color:#92400e}
+.chip.COD{background:#ffedd5;color:#9a3412}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+.acts button{min-height:44px;font-size:14px;margin:0;background:var(--pri2);color:var(--pri)}
+.acts button.ok{background:var(--pri);color:#fff;grid-column:1/-1;min-height:52px;font-size:17px}
+.pin{background:#e8f1fd;color:#1e3a8a;padding:6px 8px;border-radius:8px;font-size:13px;margin-top:6px}
+.pin a{color:#1d4ed8;font-weight:700}
+#vid{width:100%;border-radius:10px;background:#000;max-height:50vh}
+.msg{font-size:14px;color:var(--warn);margin-top:6px}
+#toast{position:fixed;left:12px;right:12px;bottom:76px;background:#17210f;color:#fff;padding:12px;border-radius:10px;z-index:9;display:none;text-align:center}
+.empty{color:var(--mut);text-align:center;padding:24px}
+table{width:100%;border-collapse:collapse}td{padding:8px 0;border-bottom:1px solid var(--line)}td:last-child{text-align:right;font-weight:700}
+</style>
+</head>
+<body>
+<header id="ttl">Dashboard</header>
+<main>
+
+<section id="v-dash" class="on">
+  <h2 id="dd"></h2>
+  <div class="grid2" id="dstats"></div>
+  <button onclick="show('scan')">📷 Scan new parcel</button>
+  <button class="sec" onclick="show('sort')">📦 View parcels by location</button>
+</section>
+
+<section id="v-scan">
+  <h2 id="fh">Scan Parcel</h2>
+  <div class="card">
+    <div id="camBox" hidden><video id="vid" playsinline muted></video><button class="bad" onclick="stopCam()">Stop camera</button></div>
+    <button id="camBtn" onclick="startCam()">📷 Start camera scan</button>
+    <div class="msg" id="camMsg"></div>
+    <label>Tracking number</label><input id="tn" autocapitalize="characters" oninput="dupCheck()">
+    <div class="msg" id="dup"></div>
+  </div>
+  <div class="card">
+    <label>Customer name</label><input id="name">
+    <label>Phone (optional)</label><input id="phone" type="tel">
+    <label>Full address (type it, then tap Organize)</label>
+    <textarea id="raw" rows="2" placeholder="Blk 4 Lot 12 Salawag Dasmarinas Cavite"></textarea>
+    <button class="sec" onclick="doParse()">✨ Organize address</button>
+    <div class="row"><div><label>Barangay</label><input id="brgy"></div><div><label>City</label><input id="city"></div></div>
+    <label>Subdivision / Village</label><input id="subd">
+    <label>Street</label><input id="street">
+    <div class="row"><div><label>Block</label><input id="block"></div><div><label>Lot</label><input id="lot"></div></div>
+    <div class="pin" id="pinHint" hidden></div>
+  </div>
+  <div class="card">
+    <div class="row">
+      <div><label>Payment type</label><select id="pay"><option>COD</option><option>Online</option><option>Prepaid</option></select></div>
+      <div><label>Amount (₱)</label><input id="amt" type="number" inputmode="decimal" min="0" step="0.01"></div>
+    </div>
+    <label>Notes</label><input id="note">
+    <button onclick="saveParcel()" id="saveBtn">💾 Save parcel</button>
+    <button class="sec" id="cancelEdit" hidden onclick="resetForm()">Cancel edit</button>
+  </div>
+</section>
+
+<section id="v-sort">
+  <h2>Parcel Sorting</h2>
+  <select id="sortf" onchange="renderSort()"><option value="open">Today + unfinished parcels</option><option value="all">All parcels</option></select>
+  <div id="sortList"></div>
+</section>
+
+<section id="v-hist">
+  <h2>Address History</h2>
+  <input id="hq" placeholder="Search name, address, tracking no." oninput="renderHist()">
+  <div id="histList" style="margin-top:10px"></div>
+</section>
+
+<section id="v-rep">
+  <h2>Daily Report</h2>
+  <label>Date</label><input type="date" id="rdate" onchange="renderRep()">
+  <div id="repBody" style="margin-top:10px"></div>
+  <button onclick="exportReport()">⬇ Export this day as CSV</button>
+</section>
+
+<section id="v-set">
+  <h2>Settings / Backup</h2>
+  <div class="card">
+    <h3>Backup</h3>
+    <button onclick="backup()">⬇ Save backup (JSON)</button>
+    <button class="sec" onclick="document.getElementById('rf').click()">⬆ Restore from backup</button>
+    <input type="file" id="rf" accept=".json,application/json" hidden onchange="restore(this)">
+    <button class="sec" onclick="exportAll()">⬇ Export all parcels (CSV)</button>
+  </div>
+  <div class="card">
+    <h3>Storage</h3>
+    <div id="storInfo" class="msg" style="color:var(--mut)"></div>
+    <p style="font-size:14px;color:var(--mut)">All data stays on this phone. Nothing is sent anywhere. Clearing Chrome's site data deletes it — save a backup often.</p>
+    <button class="bad" onclick="wipe()">🗑 Delete ALL data</button>
+  </div>
+</section>
+</main>
+<div id="toast"></div>
+<nav>
+  <button data-v="dash" class="on"><i>🏠</i>Home</button>
+  <button data-v="scan"><i>📷</i>Scan</button>
+  <button data-v="sort"><i>📦</i>Sort</button>
+  <button data-v="hist"><i>📍</i>History</button>
+  <button data-v="rep"><i>📊</i>Report</button>
+  <button data-v="set"><i>⚙️</i>Backup</button>
+</nav>
+
+<script>
+const $=s=>document.querySelector(s);
+const KEY='rider_parcels_v1';
+const ST=['Pending','Delivered','Customer Unavailable','Customer Refused','Rescheduled','Returned to Warehouse'];
+let db={parcels:[],locs:[]};
+try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.parcels)db={parcels:d.parcels,locs:d.locs||[]}}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){alert('Storage full. Save a backup and delete old parcels.')}};
+const pad=n=>String(n).padStart(2,'0');
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+const peso=c=>'₱'+(c/100).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
+const nat=(a,b)=>String(a||'').localeCompare(String(b||''),undefined,{numeric:true});
+const toast=(m,ms=2500)=>{const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',ms)};
+const mapUrl=(la,ln)=>'https://www.google.com/maps?q='+la+','+ln;
+
+/* ---------- navigation ---------- */
+const TITLES={dash:'Dashboard',scan:'Scan Parcel',sort:'Parcel Sorting',hist:'Address History',rep:'Daily Report',set:'Settings / Backup'};
+function show(v){
+  if(v!=='scan')stopCam();
+  document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  $('#ttl').textContent=TITLES[v];window.scrollTo(0,0);
+  ({dash:renderDash,sort:renderSort,hist:renderHist,rep:renderRep,set:renderSet,scan:()=>{}})[v]();
+}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>show(b.dataset.v));
+
+/* ---------- stats (COD logic lives here) ---------- */
+function stats(list){
+  const s={total:list.length,del:0,pend:0,unav:0,fail:0,codDel:0,online:0,codUn:0};
+  for(const p of list){
+    if(p.status==='Delivered'){
+      s.del++;
+      if(p.pay==='COD')s.codDel+=p.amt;
+      else if(p.pay==='Online')s.online+=p.amt;
+    }else{
+      if(p.status==='Pending')s.pend++;else s.fail++;
+      if(p.status==='Customer Unavailable')s.unav++;
+      if(p.pay==='COD')s.codUn+=p.amt;
+    }
+  }
+  return s;
+}
+const byDate=d=>db.parcels.filter(p=>p.date===d);
+
+/* ---------- dashboard ---------- */
+function renderDash(){
+  const s=stats(byDate(today()));
+  $('#dd').textContent='Today, '+new Date().toLocaleDateString('en-PH',{weekday:'long',month:'short',day:'numeric'});
+  const c=(n,l,x='')=>`<div class="stat ${x}"><b>${n}</b><span>${l}</span></div>`;
+  $('#dstats').innerHTML=c(peso(s.codDel),'COD cash collected','big')+c(s.total,'Total parcels')+c(s.del,'Delivered')+c(s.fail+s.pend,'Undelivered')+c(s.pend,'Pending');
+}
+
+/* ---------- address parser ---------- */
+const BR=['salawag','salitran','paliparan','sampaloc','burol','langkaan','fatima','san agustin','sabang','datu esmael','emmanuel bergado','luzviminda','victoria reyes','san jose','san miguel','san lorenzo ruiz','santa cristina','santa lucia','santo cristo','santo nino','saint peter','san andres','mabuhay','zone i','zone ii','zone iii','zone iv','san esteban','sampalok','bagong bayan'];
+const title=s=>s.replace(/\b\w/g,c=>c.toUpperCase());
+function parseAddr(t){
+  let l=' '+t.toLowerCase().replace(/ñ/g,'n').replace(/[.#]/g,' ')+' ',o={},m;
+  const cut=r=>{l=l.replace(r,' , ')};
+  if(m=l.match(/\bb(\d+[a-z]?)[\s,-]*l(\d+[a-z]?)\b/)){o.block=m[1].toUpperCase();o.lot=m[2].toUpperCase();cut(m[0])}
+  if(!o.block&&(m=l.match(/\b(?:blk|block|bk)\s*[-:]?\s*(\d+[a-z]?)\b/))){o.block=m[1].toUpperCase();cut(m[0])}
+  if(!o.lot&&(m=l.match(/\b(?:lot|lt)\s*[-:]?\s*(\d+[a-z]?)\b/))){o.lot=m[1].toUpperCase();cut(m[0])}
+  if(m=l.match(/\b(?:brgy|bgy|barangay)\s*,?\s*([a-z0-9 -]+?)(?=\s*,|\s+(?:dasma|dasmarinas|city|cavite)\b|\s*$)/)){o.brgy=title(m[1].trim());cut(m[0])}
+  else{const b=BR.find(x=>l.includes(' '+x+' '));if(b){o.brgy=title(b).replace('Santo Nino','Santo Niño');cut(' '+b+' ')}}
+  if(/\bdasma|dasmarinas/.test(l))o.city='Dasmariñas City, Cavite';
+  if(m=l.match(/\b((?:[a-z0-9]+ ){1,3}(?:subdivision|subd|village|vill|homes|residences|estates|heights|hills))\b/)){o.subd=title(m[1]);cut(m[0])}
+  if(m=l.match(/\b((?:[a-z0-9]+ ){1,3}(?:st|street|ave|avenue|rd|road|dr|drive|lane|ln|blvd|ext|extension))\b/)){o.street=title(m[1]);cut(m[0])}
+  return o;
+}
+const F=['brgy','city','subd','street','block','lot'];
+function doParse(){
+  const o=parseAddr($('#raw').value);let n=0;
+  F.forEach(k=>{if(o[k]){$('#'+k).value=o[k];n++}});
+  toast(n?'Address organized. Check the fields and fix any mistakes.':'Could not find any parts. Fill the fields by hand.');
+  pinHint();
+}
+
+/* ---------- saved pins ---------- */
+const keyOf=p=>[p.brgy,p.subd,p.street,p.block,p.lot].map(norm).join('|');
+const goodKey=p=>!!(norm(p.lot)||norm(p.street));
+function findLoc(p){
+  if(goodKey(p)){const k=keyOf(p);const l=db.locs.find(x=>x.key===k);if(l)return l}
+  if(p.phone){const l=db.locs.find(x=>x.phone&&x.phone===p.phone);if(l)return l}
+  return null;
+}
+const formVals=()=>({tn:$('#tn').value.trim().toUpperCase(),name:$('#name').value.trim(),phone:$('#phone').value.trim(),raw:$('#raw').value.trim(),brgy:$('#brgy').value.trim(),city:$('#city').value.trim(),subd:$('#subd').value.trim(),street:$('#street').value.trim(),block:$('#block').value.trim(),lot:$('#lot').value.trim(),pay:$('#pay').value,note:$('#note').value.trim()});
+function pinHint(){
+  const l=findLoc(formVals()),h=$('#pinHint');
+  h.hidden=!l;if(l)h.innerHTML=`📍 Saved pin found (${esc(l.name||'earlier delivery')}, ${new Date(l.at).toLocaleDateString()}). <a href="${mapUrl(l.lat,l.lng)}" target="_blank" rel="noopener">Open map</a>`;
+}
+['brgy','subd','street','block','lot','phone'].forEach(k=>$('#'+k).addEventListener('input',pinHint));
+
+/* ---------- scanner ---------- */
+let stream,timer;
+async function startCam(){
+  const m=$('#camMsg');m.textContent='';
+  if(!('BarcodeDetector' in window)){m.textContent='This browser cannot scan barcodes. Use Chrome on Android, or type the tracking number.';return}
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){m.textContent='Camera needs HTTPS. Open the app from its https:// address.';return}
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false})}
+  catch(e){m.textContent='Camera unavailable: '+e.message+'. Allow camera permission or type the number.';return}
+  const v=$('#vid');v.srcObject=stream;await v.play();$('#camBox').hidden=false;$('#camBtn').hidden=true;
+  const det=new BarcodeDetector();
+  timer=setInterval(async()=>{try{const r=await det.detect(v);if(r.length)gotCode(r[0].rawValue)}catch(e){}},300);
+}
+function stopCam(){clearInterval(timer);if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('#camBox').hidden=true;$('#camBtn').hidden=false}
+function gotCode(c){stopCam();if(navigator.vibrate)navigator.vibrate(120);$('#tn').value=c.trim().toUpperCase();dupCheck();toast('Scanned: '+c)}
+function dupCheck(){
+  const t=$('#tn').value.trim().toUpperCase(),id=$('#fh').dataset.id;
+  const d=t&&db.parcels.find(p=>p.tn===t&&p.id!==id);
+  $('#dup').textContent=d?'⚠ This tracking number is already saved ('+d.status+'). Duplicates are not allowed.':'';
+  return !!d;
+}
+
+/* ---------- save / edit parcels ---------- */
+function resetForm(){
+  ['tn','name','phone','raw','brgy','city','subd','street','block','lot','amt','note'].forEach(k=>$('#'+k).value='');
+  $('#pay').value='COD';$('#fh').dataset.id='';$('#fh').textContent='Scan Parcel';
+  $('#saveBtn').textContent='💾 Save parcel';$('#cancelEdit').hidden=true;$('#dup').textContent='';$('#pinHint').hidden=true;
+}
+function saveParcel(){
+  const v=formVals(),id=$('#fh').dataset.id;
+  if(!v.tn){toast('Enter or scan the tracking number first.');return}
+  if(dupCheck()){toast('Duplicate tracking number.');return}
+  const a=parseFloat($('#amt').value||'0');
+  if(!(a>=0)){toast('Amount is not valid.');return}
+  if(v.pay!=='Prepaid'&&!a&&!confirm('Amount is ₱0. Save anyway?'))return;
+  v.amt=Math.round(a*100);
+  if(id){Object.assign(db.parcels.find(p=>p.id===id),v);toast('Parcel updated.')}
+  else{db.parcels.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),status:'Pending',date:today(),...v});toast('Parcel saved.')}
+  save();resetForm();
+}
+function editParcel(id){
+  const p=db.parcels.find(x=>x.id===id);show('scan');
+  ['tn','name','phone','raw','brgy','city','subd','street','block','lot','pay','note'].forEach(k=>$('#'+k).value=p[k]||'');
+  $('#amt').value=p.amt?(p.amt/100):'';
+  $('#fh').dataset.id=id;$('#fh').textContent='Edit Parcel';$('#saveBtn').textContent='💾 Update parcel';$('#cancelEdit').hidden=false;pinHint();
+}
+
+/* ---------- status + GPS ---------- */
+function setStatus(id,st){
+  const p=db.parcels.find(x=>x.id===id);if(!p)return;
+  if(st!=='Delivered'){p.status=st;save();renderSort();toast('Marked: '+st);return}
+  if(!navigator.geolocation){if(confirm('GPS not available. Mark delivered without a pin?'))finishDelivery(p,null);return}
+  toast('Getting GPS location…',8000);
+  navigator.geolocation.getCurrentPosition(
+    pos=>finishDelivery(p,pos.coords),
+    err=>{if(confirm('GPS failed: '+err.message+'\nMark delivered WITHOUT saving a pin?'))finishDelivery(p,null)},
+    {enableHighAccuracy:true,timeout:20000,maximumAge:0});
+}
+function finishDelivery(p,c){
+  p.status='Delivered';p.deliveredAt=Date.now();
+  if(c){
+    p.lat=+c.latitude.toFixed(6);p.lng=+c.longitude.toFixed(6);p.acc=Math.round(c.accuracy);
+    const key=goodKey(p)?keyOf(p):'tn:'+p.tn;
+    const loc={id:p.id,key,name:p.name,phone:p.phone,tn:p.tn,addr:addrText(p),lat:p.lat,lng:p.lng,acc:p.acc,at:Date.now()};
+    const i=db.locs.findIndex(x=>x.key===key);
+    if(i>=0)db.locs[i]=loc;else db.locs.push(loc);
+  }
+  save();renderSort();toast(c?'Delivered. Pin saved (±'+p.acc+' m).':'Delivered (no GPS pin).');
+}
+function delParcel(id){if(confirm('Delete this parcel?')){db.parcels=db.parcels.filter(p=>p.id!==id);save();renderSort()}}
+const addrText=p=>[p.block&&'Blk '+p.block,p.lot&&'Lot '+p.lot,p.street,p.subd,p.brgy&&'Brgy '+p.brgy,p.city].filter(Boolean).join(', ')||p.raw||'';
+
+/* ---------- sorting view ---------- */
+function renderSort(){
+  let list=db.parcels.slice();
+  if($('#sortf').value==='open')list=list.filter(p=>p.date===today()||p.status==='Pending'||p.status==='Rescheduled');
+  list.sort((a,b)=>nat(a.brgy||'~',b.brgy||'~')||nat(a.subd,b.subd)||nat(a.street,b.street)||nat(a.block,b.block)||nat(a.lot,b.lot));
+  if(!list.length){$('#sortList').innerHTML='<div class="empty">No parcels yet. Tap Scan to add one.</div>';return}
+  let h='',lb,ls,lk;
+  for(const p of list){
+    const b=p.brgy||'(No barangay)',s=[p.subd,p.street].filter(Boolean).join(' · ')||'(No subdivision / street)',k=p.block?'Block '+p.block:'(No block)';
+    if(b!==lb){h+=`<div class="g1">${esc(b)} <span style="font-weight:400">(${list.filter(x=>(x.brgy||'(No barangay)')===b).length})</span></div>`;lb=b;ls=lk=null}
+    if(s!==ls){h+=`<div class="g2">${esc(s)}</div>`;ls=s;lk=null}
+    if(k!==lk){h+=`<div class="g3">${esc(k)}</div>`;lk=k}
+    h+=card(p);
+  }
+  $('#sortList').innerHTML=h;
+}
+function card(p){
+  const l=p.status==='Delivered'&&p.lat?p:findLoc(p);
+  const pin=l&&l.lat?`<div class="pin">📍 ${p.status==='Delivered'?'Pin saved':'Saved pin'} (±${l.acc||'?'} m) <a href="${mapUrl(l.lat,l.lng)}" target="_blank" rel="noopener">Open in Google Maps</a></div>`:'';
+  const btn=ST.filter(s=>s!=='Delivered'&&s!==p.status).map(s=>`<button data-a="st" data-s="${s}" data-id="${p.id}">${s==='Pending'?'↩ Pending':s}</button>`).join('');
+  return `<div class="card p"><div class="t">${p.lot?'Lot '+esc(p.lot)+' – ':''}${esc(p.name||'(no name)')}</div>
+  <small>${esc(p.tn)}${p.phone?' · '+esc(p.phone):''}<br>${esc(addrText(p))}${p.note?'<br>📝 '+esc(p.note):''}</small>
+  <div style="margin-top:6px"><span class="chip ${p.status==='Delivered'?'Delivered':p.status==='Pending'?'Pending':''}">${p.status}</span><span class="chip ${p.pay==='COD'?'COD':''}">${p.pay} ${peso(p.amt)}</span><span class="chip">${p.date}</span></div>${pin}
+  <div class="acts">${p.status!=='Delivered'?`<button class="ok" data-a="st" data-s="Delivered" data-id="${p.id}">✅ Delivered (save GPS)</button>`:''}${btn}
+  <button data-a="edit" data-id="${p.id}">✏ Edit</button><button data-a="del" data-id="${p.id}" style="background:#fde8e8;color:var(--bad)">🗑 Delete</button></div></div>`;
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-a]');if(!b)return;
+  const a=b.dataset.a;if(a==='st')setStatus(b.dataset.id,b.dataset.s);else if(a==='edit')editParcel(b.dataset.id);else if(a==='del')delParcel(b.dataset.id);
+  else if(a==='ldel'){if(confirm('Remove this saved pin?')){db.locs=db.locs.filter(x=>x.key!==b.dataset.id);save();renderHist()}}
+});
+
+/* ---------- history ---------- */
+function renderHist(){
+  const q=norm($('#hq').value);
+  const l=db.locs.filter(x=>!q||norm([x.name,x.addr,x.tn,x.phone].join(' ')).includes(q)).sort((a,b)=>b.at-a.at);
+  $('#histList').innerHTML=l.length?l.map(x=>`<div class="card p"><div class="t">${esc(x.name||'(no name)')}</div><small>${esc(x.addr)}<br>${esc(x.tn)} · ${new Date(x.at).toLocaleString()}</small>
+  <div class="pin">📍 ${x.lat}, ${x.lng} (±${x.acc} m) — verified by you on delivery</div>
+  <div class="row"><a href="${mapUrl(x.lat,x.lng)}" target="_blank" rel="noopener" style="text-decoration:none"><button>🗺 Open map</button></a><button class="bad" data-a="ldel" data-id="${esc(x.key)}">Remove</button></div></div>`).join('')
+  :'<div class="empty">No saved locations yet. A pin is saved each time you mark a parcel Delivered with GPS on.</div>';
+}
+
+/* ---------- report ---------- */
+function renderRep(){
+  const d=$('#rdate').value||($('#rdate').value=today()),s=stats(byDate(d));
+  const r=(a,b)=>`<tr><td>${a}</td><td>${b}</td></tr>`;
+  $('#repBody').innerHTML=`<div class="card"><table>${r('Total parcels received',s.total)}${r('Delivered',s.del)}${r('Unsuccessful',s.fail)}${r('Pending',s.pend)}${r('Customer unavailable',s.unav)}</table></div>
+  <div class="card"><table>${r('COD collected (delivered COD only)',peso(s.codDel))}${r('Online payments (delivered)',peso(s.online))}${r('Undelivered COD',peso(s.codUn))}</table></div>`;
+}
+const csv=rows=>'\uFEFF'+rows.map(r=>r.map(c=>{c=String(c==null?'':c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c}).join(',')).join('\r\n');
+function dl(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+const pRows=l=>l.map(p=>[p.date,p.tn,p.name,p.phone,p.brgy,p.subd,p.street,p.block,p.lot,p.city,p.pay,(p.amt/100).toFixed(2),p.status,p.lat||'',p.lng||'',p.lat?mapUrl(p.lat,p.lng):'',p.note]);
+const PH=['Date','Tracking','Name','Phone','Barangay','Subdivision','Street','Block','Lot','City','Payment','Amount','Status','Lat','Lng','Map link','Notes'];
+function exportReport(){
+  const d=$('#rdate').value,s=stats(byDate(d));
+  dl('report-'+d+'.csv',csv([['Daily report',d],['Total received',s.total],['Delivered',s.del],['Unsuccessful',s.fail],['Pending',s.pend],['Customer unavailable',s.unav],['COD collected',(s.codDel/100).toFixed(2)],['Online payments',(s.online/100).toFixed(2)],['Undelivered COD',(s.codUn/100).toFixed(2)],[],PH,...pRows(byDate(d))]),'text/csv');
+}
+function exportAll(){dl('all-parcels-'+today()+'.csv',csv([PH,...pRows(db.parcels)]),'text/csv')}
+
+/* ---------- backup ---------- */
+function backup(){dl('rider-backup-'+today()+'.json',JSON.stringify({app:'rider-parcels',v:1,...db}),'application/json')}
+function restore(inp){
+  const f=inp.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.parcels))throw 0;
+    if(confirm('Replace ALL current data with this backup ('+d.parcels.length+' parcels)?')){db={parcels:d.parcels,locs:d.locs||[]};save();toast('Backup restored.');renderSet()}}
+    catch(e){alert('That file is not a valid backup.')}inp.value=''};
+  r.readAsText(f);
+}
+function wipe(){if(confirm('Delete ALL parcels and saved pins? Save a backup first!')&&confirm('Really delete everything?')){db={parcels:[],locs:[]};save();toast('All data deleted.');renderSet()}}
+function renderSet(){$('#storInfo').textContent=db.parcels.length+' parcels, '+db.locs.length+' saved pins. Last app data size: '+Math.round((localStorage.getItem(KEY)||'').length/1024)+' KB.'}
+
+/* ---------- start ---------- */
+renderDash();
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script>
+</body>
+</html>
